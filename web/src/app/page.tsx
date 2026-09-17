@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 
-// Define the shape of our report based on our Phase 1 schema
 type Report = {
   id: string;
   created_at: string;
@@ -11,6 +10,9 @@ type Report = {
   normalized_query: string;
   phone_hash?: string;
   status: "pending" | "verified" | "flagged";
+  amount?: number;
+  location_name?: string;
+  category?: string;
 };
 
 export default function CommandCenter() {
@@ -21,14 +23,12 @@ export default function CommandCenter() {
   useEffect(() => {
     fetchReports();
 
-    // Set up a real-time listener for new incoming reports
     const channel = supabase
       .channel("live-reports")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reports" },
         (payload) => {
-          console.log("New report received!", payload.new);
           setReports((current) => [payload.new as Report, ...current]);
         }
       )
@@ -46,56 +46,85 @@ export default function CommandCenter() {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (error) {
-      console.error("Error fetching reports:", error);
-    } else {
-      setReports(data || []);
+    if (!error && data) {
+      setReports(data);
     }
     setLoading(false);
   }
 
+  // Calculate live stats
+  const totalAmount = reports.reduce((sum, r) => sum + (r.amount || 0), 0);
+  const pendingCount = reports.filter(r => r.status === 'pending').length;
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-10 border-b border-slate-800 pb-6 flex justify-between items-end">
+        <header className="mb-8 border-b border-slate-800 pb-6 flex justify-between items-end">
           <div>
             <h1 className="text-4xl font-bold tracking-tight text-emerald-400">Baraza Command Center</h1>
-            <p className="text-slate-400 mt-2">Real-time civilian extortion monitoring and verification</p>
+            <p className="text-slate-400 mt-2">Real-time civilian extortion monitoring</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 bg-emerald-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-slate-300">Live System Active</span>
+            <span className="text-sm font-medium text-slate-300">Live Intel Feed</span>
           </div>
         </header>
 
+        {/* Live Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl">
+            <div className="text-sm text-slate-400 mb-1">Total Reports</div>
+            <div className="text-3xl font-bold text-slate-200">{reports.length}</div>
+          </div>
+          <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl">
+            <div className="text-sm text-slate-400 mb-1">Pending Verification</div>
+            <div className="text-3xl font-bold text-amber-400">{pendingCount}</div>
+          </div>
+          <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl">
+            <div className="text-sm text-slate-400 mb-1">Total Extortion Tracked (NGN)</div>
+            <div className="text-3xl font-bold text-red-400">
+              ₦{totalAmount.toLocaleString()}
+            </div>
+          </div>
+        </div>
+
         {loading ? (
           <div className="text-slate-500 animate-pulse">Loading secure feed...</div>
-        ) : reports.length === 0 ? (
-          <div className="p-8 border border-slate-800 rounded-xl bg-slate-900/50 text-slate-400 text-center">
-            No reports logged in the system yet.
-          </div>
         ) : (
           <div className="grid gap-4">
             {reports.map((report) => (
-              <div key={report.id} className="p-5 border border-slate-800 rounded-xl bg-slate-900 shadow-sm hover:border-slate-700 transition-colors">
-                <div className="flex justify-between items-start mb-3">
-                  <span className="text-xs font-mono text-slate-500">
-                    {new Date(report.created_at).toLocaleString()}
-                  </span>
-                  <span className={`text-xs px-2 py-1 rounded-full uppercase font-bold tracking-wider ${
-                    report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                    report.status === 'flagged' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                    'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                  }`}>
-                    {report.status || 'PENDING'}
-                  </span>
+              <div key={report.id} className="p-5 border border-slate-800 rounded-xl bg-slate-900 shadow-sm flex flex-col md:flex-row gap-4 justify-between md:items-center hover:border-slate-700 transition-colors">
+                <div className="flex-1">
+                  <div className="flex gap-2 items-center mb-2">
+                    <span className="text-xs font-mono text-slate-500">
+                      {new Date(report.created_at).toLocaleTimeString()}
+                    </span>
+                    {report.category && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 capitalize">
+                        {report.category}
+                      </span>
+                    )}
+                    {report.location_name && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        📍 {report.location_name}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-200 mb-1">
+                    {report.normalized_query}
+                  </h3>
+                  <p className="text-sm text-slate-400 italic">
+                    "{report.raw_query}"
+                  </p>
                 </div>
-                <h3 className="text-lg font-semibold text-slate-200 mb-1">
-                  {report.normalized_query || "Awaiting Normalization"}
-                </h3>
-                <p className="text-sm text-slate-400 italic">
-                  Original: "{report.raw_query}"
-                </p>
+                
+                <div className="text-right">
+                  {report.amount ? (
+                    <div className="text-xl font-bold text-red-400">₦{report.amount.toLocaleString()}</div>
+                  ) : (
+                    <div className="text-sm text-slate-500">Amount not specified</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
