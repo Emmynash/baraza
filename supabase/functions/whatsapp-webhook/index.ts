@@ -23,7 +23,9 @@ async function normalizeVernacular(rawText: string): Promise<string> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GEMINI_API_KEY is missing in environment.");
 
-  const prompt = `Translate the following Nigerian Pidgin query into a formal English question suitable for a municipal database search.
+  const prompt = `CRITICAL INSTRUCTION: Output the translation immediately. DO NOT use any internal reasoning, thoughts, or scratchpads. 
+  
+  Translate the following Nigerian Pidgin query into a formal English question suitable for a municipal database search.
   Extract the core entity, the location, and the monetary amount.
   Respond ONLY with the translated formal query. Do not add quotes, labels, markdown, or conversational filler.
   
