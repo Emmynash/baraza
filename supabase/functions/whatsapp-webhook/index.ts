@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 // --- Configuration & Constants ---
 const STEALTH_TRIGGERS = new Set(["hide", "cancel", "weather", "stop", "exit"]);
@@ -91,10 +92,36 @@ serve(async (req) => {
     const normalizedQuery = await normalizeVernacular(rawMessage);
     console.log(`[Baraza] Normalized Query: "${normalizedQuery}"`);
 
-    // 4. Next Step Integration Placeholder
-    const debugResponse = `[BARAZA DEV MODE]\n\nReceived: ${rawMessage}\nNormalized: ${normalizedQuery}\n\n(Database lookup module pending...)`;
+    // 4. Save to Database
+    // Initialize Supabase client with the Service Role key to bypass RLS policies in the backend
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    return generateTwiML(debugResponse);
+    // Hash the phone number for privacy (Sybil resistance without exposing identity)
+    const phoneHash = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(senderPhone)
+    ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
+
+    const { error: dbError } = await supabase
+      .from("reports")
+      .insert({
+        raw_query: rawMessage,
+        normalized_query: normalizedQuery,
+        phone_hash: phoneHash,
+        status: "pending"
+      });
+
+    if (dbError) {
+      console.error("[Baraza] Database Insert Error:", dbError);
+      throw new Error("Failed to save report.");
+    }
+
+    console.log(`[Baraza] Successfully saved report to database.`);
+
+    const userResponse = `[BARAZA]\n\nYour report has been received and normalized to:\n"${normalizedQuery}"\n\nIt is now pending verification by our team.`;
+    return generateTwiML(userResponse);
 
   } catch (error) {
     console.error("[Baraza] Fatal Webhook Error:", error);
