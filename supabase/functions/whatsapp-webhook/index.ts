@@ -20,28 +20,32 @@ function generateTwiML(message: string): Response {
 }
 
 // --- Utility: Gemini NLP Pre-processor ---
-async function normalizeVernacular(rawText: string): Promise<string> {
+async function normalizeVernacular(rawText: string): Promise<any> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GEMINI_API_KEY is missing in environment.");
 
-  const prompt = `CRITICAL INSTRUCTION: Output the translation immediately. DO NOT use any internal reasoning, thoughts, or scratchpads. 
-  
-  Translate the following Nigerian Pidgin query into a formal English question suitable for a municipal database search.
-  Extract the core entity, the location, and the monetary amount.
-  Respond ONLY with the translated formal query. Do not add quotes, labels, markdown, or conversational filler.
-  
-  Example Input: dem say make I pay 2k for oshodi market ticket
-  Example Output: Is there a 2000 NGN market ticket fee in Oshodi?
-  
-  Actual Input: ${rawText}
-  Actual Output:`;
+  const prompt = `CRITICAL INSTRUCTION: Output ONLY valid JSON. DO NOT use markdown, reasoning, or scratchpads.
+
+  Analyze this Nigerian Pidgin query about a municipal fee. Extract the data into this exact JSON structure:
+  {
+    "normalized_query": "Formal English translation of the question",
+    "location_name": "Name of the neighborhood, city, or market",
+    "amount": numeric value of the fee (e.g. 5000) or null if not mentioned,
+    "category": "tax", "bribe", "ticket", or "unknown"
+  }
+
+  Actual Input: ${rawText}`;
 
   const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 800 }, // Increased tokens
+      generationConfig: { 
+        temperature: 0.1, 
+        maxOutputTokens: 800,
+        responseMimeType: "application/json" // This forces the model to return raw JSON!
+      },
     }),
   });
 
@@ -55,12 +59,15 @@ async function normalizeVernacular(rawText: string): Promise<string> {
   // Log the raw response so we can see exactly what the AI is thinking
   console.log("[Baraza] Raw Gemini Response parts:", JSON.stringify(data.candidates[0].content.parts));
 
-  let result = data.candidates[0].content.parts[0].text.trim();
+  // --- THIS IS THE UPDATED BOTTOM SECTION ---
+  let rawJsonText = data.candidates[0].content.parts[0].text.trim();
   
-  // Strip out any rogue leading or trailing quotation marks the model might add
-  result = result.replace(/^["']|["']$/g, '').trim();
-
-  return result;
+  try {
+    return JSON.parse(rawJsonText);
+  } catch (e) {
+    console.error("Failed to parse Gemini JSON:", rawJsonText);
+    throw new Error("Invalid JSON from NLP model");
+  }
 }
 
 // --- Main Webhook Handler ---
@@ -89,8 +96,8 @@ serve(async (req) => {
     }
 
     // 3. NLP Normalization Pipeline (Pidgin -> English)
-    const normalizedQuery = await normalizeVernacular(rawMessage);
-    console.log(`[Baraza] Normalized Query: "${normalizedQuery}"`);
+    const intelligence = await normalizeVernacular(rawMessage);
+    console.log(`[Baraza] Extracted Intelligence:`, intelligence);
 
     // 4. Save to Database
     // Initialize Supabase client with the Service Role key to bypass RLS policies in the backend
@@ -108,7 +115,10 @@ serve(async (req) => {
       .from("reports")
       .insert({
         raw_query: rawMessage,
-        normalized_query: normalizedQuery,
+        normalized_query: intelligence.normalized_query,
+        location_name: intelligence.location_name,
+        amount: intelligence.amount,
+        category: intelligence.category,
         phone_hash: phoneHash,
         status: "pending"
       });
@@ -120,7 +130,7 @@ serve(async (req) => {
 
     console.log(`[Baraza] Successfully saved report to database.`);
 
-    const userResponse = `[BARAZA]\n\nYour report has been received and normalized to:\n"${normalizedQuery}"\n\nIt is now pending verification by our team.`;
+    const userResponse = `[BARAZA]\n\nYour report has been received and normalized to:\n"${intelligence.normalized_query}"\n\nLocation: ${intelligence.location_name}\n\nAmount: ${intelligence.amount}\n\nCategory: ${intelligence.category}\n\nIt is now pending verification.`;
     return generateTwiML(userResponse);
 
   } catch (error) {
