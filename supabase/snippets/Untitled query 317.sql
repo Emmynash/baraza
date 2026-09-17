@@ -1,0 +1,1 @@
+select * from vetted_agents;
