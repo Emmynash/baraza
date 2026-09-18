@@ -105,14 +105,20 @@ This prototype uses the Twilio Sandbox for WhatsApp. To test the live extortion 
 3. You will receive a confirmation message that you are connected to the sandbox.
 
 **Step 2: Submit a Report**
-Send a vernacular extortion report to the number. For example:
-> *"Dem dey tax 3k for oshodi motor park from everybody."*
+Send a vernacular extortion report to the number. The AI now evaluates context (amount, entity, and geography) to verify claims against the official Lagos State database. Try these examples to test the system's logic:
+
+*   **Test an Official Match (Valid context & amount):**
+    > *"Council boys stopped my danfo in Ikeja and demanded a daily parking toll of 500 naira."*
+    *(Expect a `[BARAZA ALERT] Official Levy Match` warning)*
+
+*   **Test an Out-of-Bounds/Suspicious Report (Wrong geography & high amount):**
+    > *"Dem dey collect 5k as parking tickets for Jos terminus."*
+    *(Expect the standard `[BARAZA]` pending verification message, as Jos is outside the supported jurisdiction and the daily amount triggers an anomaly)*
 
 **Step 3: View the Dashboard**
-The report will be instantly translated, categorized by the Gemini AI, and mapped on the live dashboard. 
+The report will be instantly translated, strictly categorized by OpenAI (GPT-4o-mini), verified via vector search, and mapped on the live dashboard at [https://baraza-live.vercel.app/](https://baraza-live.vercel.app/). 
 
-*(Note: We are using a free-tier AI model. If you receive a message saying "Our verification service is temporarily overloaded. Please try again in a few minutes. Text HIDE for safety.", this means the Gemini API is currently experiencing heavy hackathon traffic. Please wait 30 seconds and try again!)*
----
+*(Note: If you receive a message saying "Our verification service is temporarily overloaded. Please try again in a few minutes. Text HIDE for safety.", this means the OpenAI API is currently rate-limited or experiencing heavy traffic. Please wait 30 seconds and try again!)*
 
 ## 🗺️ V2 Roadmap
 * **Toponym Resolution:** Implement dynamic clarification for ambiguous locations.
