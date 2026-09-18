@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 // --- Configuration & Constants ---
 const STEALTH_TRIGGERS = new Set(["hide", "cancel", "weather", "stop", "exit"]);
 const STEALTH_PAYLOAD = "Thank you for subscribing to Lagos Daily Weather. Today is sunny with a high of 32°C. Remember to stay hydrated!";
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent";
 
 // --- Utility: Generate Twilio XML Response ---
 function generateTwiML(message: string): Response {
@@ -70,8 +70,12 @@ async function normalizeVernacular(rawText: string): Promise<any> {
   });
 
   if (!response.ok) {
-    console.error("Gemini API Error:", await response.text());
-    throw new Error("Failed to process NLP normalization.");
+    // console.error("Gemini API Error:", await response.text());
+    // throw new Error("Failed to process NLP normalization.");
+    // Read the error from Google
+    const errorText = await response.text();
+    // Throw it directly so it appears in the fatal crash log!
+    throw new Error(`Gemini API Error: ${errorText}`);
   }
 
   const data = await response.json();
@@ -136,22 +140,24 @@ serve(async (req) => {
     ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
 
     const { error: dbError } = await supabase
-      .from("reports")
+      .from("extortion_reports")
       .insert({
-        raw_query: rawMessage,
-        normalized_query: intelligence.normalized_query,
+        user_query: rawMessage,                          // Updated key
+        normalized_query: intelligence.normalized_query, 
         location_name: intelligence.location_name,
         amount: intelligence.amount,
         category: intelligence.category,
-        latitude: coords.lat,       
-        longitude: coords.lng,      
-        phone_hash: phoneHash,
+        fuzzed_location: `POINT(${coords.lng} ${coords.lat})`, // Converted to PostGIS WKT (Longitude first!)
+        user_phone_hash: phoneHash,                      // Updated key
         status: "pending"
       });
 
     if (dbError) {
-      console.error("[Baraza] Database Insert Error:", dbError);
-      throw new Error("Failed to save report.");
+    //   console.error("[Baraza] Database Insert Error:", dbError);
+    //   throw new Error("Failed to save report.");
+        console.error("[Baraza] Database Insert Error:", dbError);
+      // Inject the dbError directly into the fatal crash message
+      throw new Error(`Failed to save report: ${JSON.stringify(dbError)}`);
     }
 
     console.log(`[Baraza] Successfully saved report to database.`);

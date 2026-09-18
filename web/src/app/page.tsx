@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 
-// Dynamically import the map so it only loads on the client side
 const Map = dynamic(() => import("@/components/Map"), { 
   ssr: false, 
   loading: () => (
@@ -16,16 +15,15 @@ const Map = dynamic(() => import("@/components/Map"), {
 
 type Report = {
   id: string;
-  created_at: string;
-  raw_query: string;
+  reported_at: string;          // Updated to match DB
+  user_query: string;           // Updated to match DB
   normalized_query: string;
-  phone_hash?: string;
+  user_phone_hash?: string;     // Updated to match DB
   status: "pending" | "verified" | "flagged";
   amount?: number;
   location_name?: string;
   category?: string;
-  latitude?: number;
-  longitude?: number;
+  fuzzed_location?: any;        // Added to match DB geometry
 };
 
 export default function CommandCenter() {
@@ -40,7 +38,7 @@ export default function CommandCenter() {
       .channel("live-reports")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "reports" },
+        { event: "INSERT", schema: "public", table: "extortion_reports" }, // Updated table
         (payload) => {
           setReports((current) => [payload.new as Report, ...current]);
         }
@@ -54,9 +52,9 @@ export default function CommandCenter() {
 
   async function fetchReports() {
     const { data, error } = await supabase
-      .from("reports")
+      .from("extortion_reports") // Updated table
       .select("*")
-      .order("created_at", { ascending: false })
+      .order("reported_at", { ascending: false }) // Updated column
       .limit(50);
 
     if (!error && data) {
@@ -101,7 +99,6 @@ export default function CommandCenter() {
           </div>
         </div>
 
-
         {/* Hotspot Map */}
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
@@ -124,7 +121,7 @@ export default function CommandCenter() {
                 <div className="flex-1">
                   <div className="flex gap-2 items-center mb-2">
                     <span className="text-xs font-mono text-slate-500">
-                      {new Date(report.created_at).toLocaleTimeString()}
+                      {report.reported_at ? new Date(report.reported_at).toLocaleTimeString() : "Just now"}
                     </span>
                     {report.category && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 capitalize">
@@ -141,7 +138,7 @@ export default function CommandCenter() {
                     {report.normalized_query}
                   </h3>
                   <p className="text-sm text-slate-400 italic">
-                    "{report.raw_query}"
+                    "{report.user_query}"
                   </p>
                 </div>
                 
