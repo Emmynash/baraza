@@ -16,6 +16,7 @@ export default function Map({ reports }: { reports: any[] }) {
     if (loc.latitude && loc.longitude) return [loc.latitude, loc.longitude];
 
     // Extract numbers from "POINT(lng lat)"
+    // PostGIS format is POINT(longitude latitude)
     if (typeof loc === 'string') {
       const match = loc.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);
       if (match) {
@@ -28,10 +29,20 @@ export default function Map({ reports }: { reports: any[] }) {
     return null;
   };
 
-  // Map the reports to include parsed coordinates, then filter out invalids
-  const validReports = reports
-    .map(report => ({ ...report, coords: getCoordinates(report.fuzzed_location) }))
-    .filter(report => report.coords !== null);
+  // Map the reports to include parsed coordinates
+  const analyzedReports = reports.map(report => ({
+    ...report,
+    coords: getCoordinates(report.fuzzed_location)
+  }));
+
+  // *** TEMPORARY DEBUGGING LOG ***
+  // Check your browser console to see exactly what data is arriving
+  console.log("[Map Debug] Raw Reports Input:", reports);
+  console.log("[Map Debug] Parsed Data:", analyzedReports);
+  // *** END TEMPORARY DEBUGGING LOG ***
+
+  // Filter out invalids so the map doesn't crash on null coordinates
+  const validReports = analyzedReports.filter(report => report.coords !== null);
 
   return (
     <div className="h-[400px] w-full rounded-xl overflow-hidden border border-slate-800 z-0 relative">
@@ -59,7 +70,7 @@ export default function Map({ reports }: { reports: any[] }) {
           >
             <Popup>
               <div className="text-slate-800 font-sans">
-                <div className="font-bold text-sm mb-1">{report.location_name}</div>
+                <div className="font-bold text-sm mb-1">{report.location_name || 'Unknown Location'}</div>
                 <div className="text-xs text-red-600 font-bold mb-1">
                   Amount: {report.amount ? `₦${report.amount.toLocaleString()}` : 'Unspecified'}
                 </div>
