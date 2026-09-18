@@ -139,6 +139,10 @@ serve(async (req) => {
       new TextEncoder().encode(senderPhone)
     ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
 
+    // Fallback to 0 0 if coords are null or undefined
+    const safeLng = coords?.lng || 0.0;
+    const safeLat = coords?.lat || 0.0;
+
     const { error: dbError } = await supabase
       .from("extortion_reports")
       .insert({
@@ -147,7 +151,7 @@ serve(async (req) => {
         location_name: intelligence.location_name,
         amount: intelligence.amount,
         category: intelligence.category,
-        fuzzed_location: `POINT(${coords.lng} ${coords.lat})`, // Converted to PostGIS WKT (Longitude first!)
+        fuzzed_location: `POINT(${safeLng} ${safeLat})`, // Converted to PostGIS WKT (Longitude first!)
         user_phone_hash: phoneHash,                      // Updated key
         status: "pending"
       });
