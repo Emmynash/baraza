@@ -18,10 +18,10 @@ export default function Map({ reports }: { reports: any[] }) {
         zoom={6} 
         className="h-full w-full"
       >
-        {/* Dark Mode Map Tiles from CartoDB */}
+        {/* Light Mode Map Tiles from OpenStreetMap */}
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">Carto</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
         {validReports.map((report) => (
