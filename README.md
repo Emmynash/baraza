@@ -94,6 +94,24 @@ ngrok http 54321
 Paste your Ngrok URL into the Twilio WhatsApp Sandbox Webhook settings:
 `https://<YOUR_NGROK_URL>/functions/v1/whatsapp-webhook`
 
+
+## 🧪 How to Test
+
+This prototype uses the Twilio Sandbox for WhatsApp. To test the live extortion reporting flow, you must first opt-in your WhatsApp number.
+
+**Step 1: Join the Sandbox**
+1. Add **+14155238886** to your WhatsApp contacts.
+2. Send exactly this message to start the session: `join opposite-everything`
+3. You will receive a confirmation message that you are connected to the sandbox.
+
+**Step 2: Submit a Report**
+Send a vernacular extortion report to the number. For example:
+> *"Dem dey tax 3k for oshodi motor park from everybody."*
+
+**Step 3: View the Dashboard**
+The report will be instantly translated, categorized by the Gemini AI, and mapped on the live dashboard. 
+
+*(Note: We are using a free-tier AI model. If you receive a message saying "Our verification service is temporarily overloaded. Please try again in a few minutes. Text HIDE for safety.", this means the Gemini API is currently experiencing heavy hackathon traffic. Please wait 30 seconds and try again!)*
 ---
 
 ## 🗺️ V2 Roadmap
