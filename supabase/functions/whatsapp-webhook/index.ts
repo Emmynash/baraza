@@ -19,6 +19,26 @@ function generateTwiML(message: string): Response {
   });
 }
 
+async function geocodeLocation(locationName: string) {
+  if (!locationName || locationName.toLowerCase() === "unknown") return { lat: null, lng: null };
+  
+  try {
+    // Adding "Nigeria" to help scope the search
+    const query = encodeURIComponent(`${locationName}, Nigeria`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`, {
+      headers: { "User-Agent": "Baraza-Hackathon-App" } // Nominatim requires a User-Agent
+    });
+    const data = await res.json();
+    
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (e) {
+    console.error("[Baraza] Geocoding failed:", e);
+  }
+  return { lat: null, lng: null };
+}
+
 // --- Utility: Gemini NLP Pre-processor ---
 async function normalizeVernacular(rawText: string): Promise<any> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -99,6 +119,10 @@ serve(async (req) => {
     const intelligence = await normalizeVernacular(rawMessage);
     console.log(`[Baraza] Extracted Intelligence:`, intelligence);
 
+    // Geocode the location
+    const coords = await geocodeLocation(intelligence.location_name);
+    console.log(`[Baraza] Geocoded Coordinates:`, coords);
+
     // 4. Save to Database
     // Initialize Supabase client with the Service Role key to bypass RLS policies in the backend
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -119,6 +143,8 @@ serve(async (req) => {
         location_name: intelligence.location_name,
         amount: intelligence.amount,
         category: intelligence.category,
+        latitude: coords.lat,       
+        longitude: coords.lng,      
         phone_hash: phoneHash,
         status: "pending"
       });
