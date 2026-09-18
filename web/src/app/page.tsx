@@ -2,6 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import dynamic from "next/dynamic";
+
+// Dynamically import the map so it only loads on the client side
+const Map = dynamic(() => import("@/components/Map"), { 
+  ssr: false, 
+  loading: () => (
+    <div className="h-[400px] w-full rounded-xl bg-slate-900 animate-pulse border border-slate-800 flex items-center justify-center text-slate-500">
+      Initializing spatial radar...
+    </div>
+  ) 
+});
 
 type Report = {
   id: string;
@@ -13,6 +24,8 @@ type Report = {
   amount?: number;
   location_name?: string;
   category?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export default function CommandCenter() {
@@ -88,6 +101,20 @@ export default function CommandCenter() {
           </div>
         </div>
 
+
+        {/* Hotspot Map */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
+            <span className="text-emerald-500">◉</span> Live Activity Map
+          </h2>
+          <Map reports={reports} />
+        </div>
+
+        {/* Report Feed */}
+        <div>
+          <h2 className="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
+            <span className="text-emerald-500">≡</span> Intel Feed
+          </h2>
         {loading ? (
           <div className="text-slate-500 animate-pulse">Loading secure feed...</div>
         ) : (
@@ -129,6 +156,7 @@ export default function CommandCenter() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </main>
   );
