@@ -8,8 +8,30 @@ export default function Map({ reports }: { reports: any[] }) {
   // Center map on Nigeria by default
   const defaultCenter = [9.0820, 8.6753]; 
   
-  // Only plot reports that have valid coordinates
-  const validReports = reports.filter(r => r.latitude && r.longitude);
+  // Helper function to parse PostGIS POINT(lng lat) string
+  const getCoordinates = (loc: any): [number, number] | null => {
+    if (!loc) return null;
+    
+    // Fallback if older mock data still uses lat/lng properties
+    if (loc.latitude && loc.longitude) return [loc.latitude, loc.longitude];
+
+    // Extract numbers from "POINT(lng lat)"
+    if (typeof loc === 'string') {
+      const match = loc.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);
+      if (match) {
+        const lng = parseFloat(match[1]);
+        const lat = parseFloat(match[2]);
+        // Leaflet expects [latitude, longitude]
+        return [lat, lng]; 
+      }
+    }
+    return null;
+  };
+
+  // Map the reports to include parsed coordinates, then filter out invalids
+  const validReports = reports
+    .map(report => ({ ...report, coords: getCoordinates(report.fuzzed_location) }))
+    .filter(report => report.coords !== null);
 
   return (
     <div className="h-[400px] w-full rounded-xl overflow-hidden border border-slate-800 z-0 relative">
@@ -27,7 +49,7 @@ export default function Map({ reports }: { reports: any[] }) {
         {validReports.map((report) => (
           <CircleMarker
             key={report.id}
-            center={[report.latitude, report.longitude]}
+            center={report.coords as [number, number]}
             radius={8}
             pathOptions={{ 
               color: '#f87171', // Red outline
@@ -41,7 +63,7 @@ export default function Map({ reports }: { reports: any[] }) {
                 <div className="text-xs text-red-600 font-bold mb-1">
                   Amount: {report.amount ? `₦${report.amount.toLocaleString()}` : 'Unspecified'}
                 </div>
-                <div className="text-xs italic text-slate-600">"{report.raw_query}"</div>
+                <div className="text-xs italic text-slate-600">"{report.user_query}"</div>
               </div>
             </Popup>
           </CircleMarker>
