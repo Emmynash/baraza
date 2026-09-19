@@ -48,7 +48,7 @@ Baraza is built with a modern, real-time edge stack:
 * Docker (for Supabase Local Studio)
 * Node.js 18+
 * Twilio Account (WhatsApp Sandbox)
-* Google Gemini API Key
+* OpenAI API Key
 
 ### 1. Clone & Install
 ```bash
