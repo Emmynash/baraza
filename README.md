@@ -69,7 +69,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_local_anon_key
 
 Create a `.env` file in the `supabase/` directory:
 ```env
-GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key_here
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=paste_your_service_role_key_here
 ```
 
 ### 3. Start the Backend (Supabase)
@@ -101,7 +104,7 @@ This prototype uses the Twilio Sandbox for WhatsApp. To test the live extortion 
 
 **Step 1: Join the Sandbox**
 1. Add **+14155238886** to your WhatsApp contacts.
-2. Send exactly this message to start the session: `join opposite-everything`
+2. Send exactly this message to start the session: `join stomach-compound`
 3. You will receive a confirmation message that you are connected to the sandbox.
 
 **Step 2: Submit a Report**
